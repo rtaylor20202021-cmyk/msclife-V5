@@ -1,4 +1,4 @@
-let fame = 0, money = 100, skill = 50, hype = 10; // Added Hype
+let fame = 0, money = 100, skill = 50, hype = 10;
 let songs = [];
 let albums = [];
 
@@ -17,12 +17,12 @@ function loadGame() {
     fame = data.fame; money = data.money; skill = data.skill;
     songs = data.songs; albums = data.albums; 
     hype = data.hype || 10;
-    print("<b>V5 Save Loaded.</b> Welcome back.");
+    print("<b>Save Loaded.</b> Picking up the tour bus where we left off.");
   }
   updateStatus();
 }
 
-// --- CORE UTILITIES ---
+// --- UTILITIES ---
 function getFameLevel() {
   if (fame >= 100000) return "👑 Global Legend";
   if (fame >= 50000)  return "🌟 Superstar";
@@ -52,89 +52,113 @@ function updateStatus() {
   saveGame();
 }
 
-// --- V5 NEW MECHANICS ---
+// --- ACTIONS ---
 
 function createSong() {
   let name = prompt("Song name:");
   if (!name) return;
   let quality = Math.floor(Math.random() * 10) + Math.floor(skill / 10);
   songs.push({ name, quality, released: false });
-  hype += 5; // Creating music builds hype
-  print(`<b>New Track:</b> '${name}' created. Hype increased!`);
+  hype += 5;
+  print(`<b>New Track:</b> '${name}' written. (Quality: ${quality})`);
   updateStatus();
 }
 
-function releaseSong() {
-  let unreleased = songs.filter(s => !s.released);
-  if (unreleased.length === 0) return;
-  showSongs();
-  let idx = parseInt(prompt("Release song number:")) - 1;
-  if (songs[idx] && !songs[idx].released) {
-    songs[idx].released = true;
-    hype += 15; // Releasing music is a major hype booster
-    fame += Math.floor(songs[idx].quality * 5);
-    money += Math.floor(songs[idx].quality * 10);
-    print(`<b>RELEASED:</b> '${songs[idx].name}'. The internet is talking!`);
-    updateStatus();
-  }
-}
-
 /**
- * V5 TOUR SYSTEM: Venue Selection & Ticket Math
+ * Perform Gig: Single show version of the Tour logic
  */
-function startTour() {
-  if (songs.length < 3) { print("Need 3+ songs to tour."); return; }
-
+function perform() {
   const venues = [
     { name: "Dive Bar", cost: 50, capacity: 100, reqFame: 0 },
-    { name: "Music Hall", cost: 500, capacity: 1000, reqFame: 5000 },
+    { name: "Music Hall", cost: 500, capacity: 1000, reqFame: 5500 },
     { name: "Arena", cost: 5000, capacity: 15000, reqFame: 25000 },
-    { name: "Stadium", cost: 50000, capacity: 80000, reqFame: 60000 }
+    { name: "Stadium", cost: 50000, capacity: 80000, reqFame: 50000 }
   ];
 
-  let choice = prompt(`Select Venue:\n1: Dive Bar ($50)\n2: Music Hall ($500)\n3: Arena ($5k)\n4: Stadium ($50k)`);
+  let choice = prompt(`Select Venue for Tonight:\n1: Dive Bar ($50)\n2: Music Hall ($500)\n3: Arena ($5k)\n4: Stadium ($50k)`);
   let v = venues[parseInt(choice) - 1];
 
   if (!v) return;
-  if (money < v.cost) { print("<span style='color:red;'>Not enough cash for the rental fee!</span>"); return; }
+  if (money < v.cost) { print("<span style='color:red;'>Not enough cash for rent!</span>"); return; }
 
   money -= v.cost;
-  print(`<b>Touring: ${v.name}...</b>`);
-
-  // Calculate Attendance based on Fame vs ReqFame + Hype
-  let fameRatio = (fame + 1) / (v.reqFame + 1);
-  if (fameRatio > 1.2) fameRatio = 1.2; // Cap at 120% sold out (standing room)
   
-  let attendancePercent = (fameRatio * (hype / 100)) + (Math.random() * 0.2);
-  if (attendancePercent > 1.2) attendancePercent = 1.2;
+  // Logic: Attendance based on Fame vs Venue Requirement + Hype
+  let fameRatio = (fame + 50) / (v.reqFame + 50);
+  let attendancePercent = (fameRatio * (hype / 100)) + (Math.random() * 0.15);
+  if (attendancePercent > 1.1) attendancePercent = 1.1; // Slight standing room
   
   let ticketsSold = Math.floor(v.capacity * attendancePercent);
-  let ticketPrice = (v.cost / (v.capacity * 0.5)); // Dynamic pricing
-  let totalRevenue = Math.floor(ticketsSold * ticketPrice * 2);
-  let fameGain = Math.floor(ticketsSold * 0.1);
+  if (ticketsSold < 0) ticketsSold = 0;
+
+  let ticketPrice = (v.cost / (v.capacity * 0.4)); 
+  let totalRevenue = Math.floor(ticketsSold * ticketPrice);
+  let fameGain = Math.floor(ticketsSold * 0.05);
 
   money += totalRevenue;
   fame += fameGain;
-  hype = Math.floor(hype * 0.7); // Hype resets/cools down after a tour
+  hype += 2; // Small hype boost for playing a show
 
-  print(`--- TOUR REPORT: ${v.name} ---`);
-  print(`Attendance: ${ticketsSold} / ${v.capacity}`);
-  print(`Revenue: $${totalRevenue} (Profit: $${totalRevenue - v.cost})`);
-  print(`Fame Gained: +${fameGain}`);
+  print(`<b>Gig Report: ${v.name}</b>`);
+  print(`Sold ${ticketsSold} tickets. Revenue: $${totalRevenue}. Fame: +${fameGain}`);
   
-  if (totalRevenue < v.cost) {
-    print("<span style='color:red;'>Ouch. You didn't even cover the venue cost.</span>");
-  } else if (attendancePercent > 0.9) {
-    print("<span style='color:var(--accent);'>SOLD OUT! The crowd went wild!</span>");
+  if (totalRevenue < v.cost) print("<span style='color:red;'>The show was a financial loss.</span>");
+  updateStatus();
+}
+
+function startTour() {
+  if (songs.length < 5) { print("You need at least 5 songs for a full tour setlist."); return; }
+  
+  const tourTypes = [
+    { name: "Local Tour", stops: 4, cost: 300, venueIdx: 0 },
+    { name: "National Tour", stops: 8, cost: 4000, venueIdx: 1 },
+    { name: "World Tour", stops: 12, cost: 45000, venueIdx: 3 }
+  ];
+
+  let choice = prompt(`Select Tour Package:\n1: Local ($300)\n2: National ($4k)\n3: World ($45k)`);
+  let t = tourTypes[parseInt(choice) - 1];
+  if (!t) return;
+  if (money < t.cost) { print("Insufficient funds for tour logistics."); return; }
+
+  money -= t.cost;
+  print(`<b>Starting ${t.name}...</b>`);
+  
+  let totalRev = 0;
+  let totalFame = 0;
+
+  for(let i=0; i < t.stops; i++) {
+    // Re-using simplified gig math for each stop
+    let fGain = Math.floor(Math.random() * (fame/10)) + 20;
+    let mGain = Math.floor(fGain * 2.5);
+    totalRev += mGain;
+    totalFame += fGain;
   }
 
+  money += totalRev;
+  fame += totalFame;
+  hype = Math.floor(hype * 0.5); // Major hype burnout after tour
+
+  print(`--- ${t.name} Complete ---`);
+  print(`Total Revenue: $${totalRev} | Fame Gained: +${totalFame}`);
   updateStatus();
 }
 
 function practice() {
   if (money < 50) return;
   money -= 50; skill += 5;
-  print("Practiced hard. Skill +5.");
+  print("Vocal cords warmed up. Skill +5.");
+  updateStatus();
+}
+
+function releaseSong() {
+  let unreleased = songs.filter(s => !s.released);
+  if (unreleased.length === 0) return;
+  let idx = songs.findIndex(s => !s.released);
+  songs[idx].released = true;
+  hype += 20;
+  money += (songs[idx].quality * 10);
+  fame += (songs[idx].quality * 5);
+  print(`<b>Released:</b> ${songs[idx].name}. Hype is building!`);
   updateStatus();
 }
 
